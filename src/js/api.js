@@ -36,28 +36,33 @@ function fetchDemo() {
 
 async function getStore() {
     const raw = localStorage.getItem(LS_KEY);
+    let store;
     if (raw) {
         try {
-            return JSON.parse(raw);
+            store = JSON.parse(raw);
         } catch {
             // localStorage corrompu (ex. troncature) : on repart du seed démo
             localStorage.removeItem(LS_KEY);
+            store = null;
         }
     }
-    const demo = await fetchDemo();
-    const store = demo ?? {
-        settings: {},
-        roles: [],
-        employees: [],
-        shifts: [],
-        absences: [],
-        nextIds: { emp: 1, abs: 1 },
-    };
+    if (!store) {
+        const demo = await fetchDemo();
+        store = demo ?? {
+            settings: {},
+            roles: [],
+            employees: [],
+            shifts: [],
+            absences: [],
+            nextIds: { emp: 1, abs: 1 },
+        };
+    }
     // Migrateurs défensifs pour d'éventuels anciens formats localStorage
     store.roles ??= [];
     store.shifts ??= [];
     store.absences ??= [];
     store.nextIds ??= { emp: 1, abs: 1 };
+    store.settings ??= {};
     store.settings.week_start_year ??= String(new Date().getFullYear());
     localStorage.setItem(LS_KEY, JSON.stringify(store));
     return store;

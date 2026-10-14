@@ -1,0 +1,61 @@
+{
+  "settings": {
+    "roles": "Caisse, Logistique, Service Client, Management",
+    "absence_types": "Congé payé, Arrêt maladie, Congé sans solde",
+    "absence_statuses": "En attente, Validé, Refusé",
+    "days_of_week": "Lundi, Mardi, Mercredi, Jeudi, Vendredi, Samedi, Dimanche",
+    "default_shift": "Repos",
+    "default_contract_hours": "35"
+  },
+  "roles": ["Caisse", "Logistique", "Service Client", "Management"],
+  "employees": [
+    { "id": 1, "name": "Sophie Martin", "role": "Caisse", "contract": 35 },
+    { "id": 2, "name": "Lucas Bernard", "role": "Logistique", "contract": 35 },
+    { "id": 3, "name": "Emma Leroy", "role": "Service Client", "contract": 35 },
+    { "id": 4, "name": "Thomas Petit", "role": "Caisse", "contract": 39 },
+    { "id": 5, "name": "Chloé Moreau", "role": "Logistique", "contract": 30 }
+  ],
+  "shifts": [
+    { "employeeId": 1, "week": 42, "day": 1, "shift": "08:00 - 16:00" },
+    { "employeeId": 1, "week": 42, "day": 2, "shift": "08:00 - 16:00" },
+    { "employeeId": 1, "week": 42, "day": 3, "shift": "Repos" },
+    { "employeeId": 1, "week": 42, "day": 4, "shift": "10:00 - 18:00" },
+    { "employeeId": 1, "week": 42, "day": 5, "shift": "08:00 - 16:00" },
+    { "employeeId": 1, "week": 42, "day": 6, "shift": "Repos" },
+    { "employeeId": 1, "week": 42, "day": 7, "shift": "Repos" },
+    { "employeeId": 2, "week": 42, "day": 1, "shift": "12:00 - 20:00" },
+    { "employeeId": 2, "week": 42, "day": 2, "shift": "12:00 - 20:00" },
+    { "employeeId": 2, "week": 42, "day": 3, "shift": "12:00 - 20:00" },
+    { "employeeId": 2, "week": 42, "day": 4, "shift": "Repos" },
+    { "employeeId": 2, "week": 42, "day": 5, "shift": "12:00 - 20:00" },
+    { "employeeId": 2, "week": 42, "day": 6, "shift": "12:00 - 20:00" },
+    { "employeeId": 2, "week": 42, "day": 7, "shift": "Repos" },
+    { "employeeId": 3, "week": 42, "day": 1, "shift": "09:00 - 17:00" },
+    { "employeeId": 3, "week": 42, "day": 2, "shift": "09:00 - 17:00" },
+    { "employeeId": 3, "week": 42, "day": 3, "shift": "09:00 - 17:00" },
+    { "employeeId": 3, "week": 42, "day": 4, "shift": "09:00 - 17:00" },
+    { "employeeId": 3, "week": 42, "day": 5, "shift": "Repos" },
+    { "employeeId": 3, "week": 42, "day": 6, "shift": "Repos" },
+    { "employeeId": 3, "week": 42, "day": 7, "shift": "Repos" },
+    { "employeeId": 4, "week": 42, "day": 1, "shift": "Repos" },
+    { "employeeId": 4, "week": 42, "day": 2, "shift": "08:00 - 16:00" },
+    { "employeeId": 4, "week": 42, "day": 3, "shift": "08:00 - 16:00" },
+    { "employeeId": 4, "week": 42, "day": 4, "shift": "08:00 - 16:00" },
+    { "employeeId": 4, "week": 42, "day": 5, "shift": "08:00 - 16:00" },
+    { "employeeId": 4, "week": 42, "day": 6, "shift": "08:00 - 16:00" },
+    { "employeeId": 4, "week": 42, "day": 7, "shift": "Repos" },
+    { "employeeId": 5, "week": 42, "day": 1, "shift": "10:00 - 16:00" },
+    { "employeeId": 5, "week": 42, "day": 2, "shift": "10:00 - 16:00" },
+    { "employeeId": 5, "week": 42, "day": 3, "shift": "Repos" },
+    { "employeeId": 5, "week": 42, "day": 4, "shift": "10:00 - 16:00" },
+    { "employeeId": 5, "week": 42, "day": 5, "shift": "10:00 - 16:00" },
+    { "employeeId": 5, "week": 42, "day": 6, "shift": "Repos" },
+    { "employeeId": 5, "week": 42, "day": 7, "shift": "Repos" }
+  ],
+  "absences": [
+    { "id": 1, "employeeId": 2, "type": "Congé payé", "period": "16 Octobre - 17 Octobre", "status": "En attente" },
+    { "id": 2, "employeeId": 4, "type": "Arrêt maladie", "period": "12 Octobre", "status": "Validé" },
+    { "id": 3, "employeeId": 5, "type": "Congé sans solde", "period": "14 Octobre", "status": "Refusé" }
+  ],
+  "nextIds": { "emp": 6, "abs": 4 }
+}
