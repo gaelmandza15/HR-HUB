@@ -20,7 +20,9 @@ export function escapeHtml(str) {
 
 /** Convertit une chaîne de créneau ("08:00 - 16:00") en heures travaillées. */
 export function parseShiftHours(shiftString) {
-    if (!shiftString) return 0;
+    // Garde-fou : un créneau non textuel (nombre, objet…) ne doit jamais
+    // faire planter l'app ("shiftString.toLowerCase is not a function").
+    if (typeof shiftString !== 'string' || !shiftString) return 0;
     const lower = shiftString.toLowerCase();
     if (lower.includes('repos') || lower.includes('congé')) return 0;
     const parts = shiftString.split('-');

@@ -11,7 +11,9 @@ let employees = [];
 let roles = [];
 
 export async function renderTeam(container) {
-    [employees, roles] = await Promise.all([api.listEmployees(), api.listRoles()]);
+    const [emps, r] = await Promise.all([api.listEmployees(), api.listRoles()]);
+    employees = emps.map((emp) => ({ ...emp, contract: Number(emp.contract) || 0 }));
+    roles = r;
 
     container.innerHTML = `
         <div class="space-y-6">
@@ -49,7 +51,7 @@ export async function renderTeam(container) {
             <td class="p-4 text-sm">
                 <span class="pill-btn border-2 border-[#2f3640] px-3 py-1 text-xs font-bold">${escapeHtml(emp.role)}</span>
             </td>
-            <td class="p-4 text-sm font-semibold">${emp.contract}h / semaine</td>
+            <td class="p-4 text-sm font-semibold">${Number(emp.contract) || 0}h / semaine</td>
             <td class="p-4 text-right space-x-2">
                 <button data-edit-emp="${emp.id}" class="pill-btn border-2 border-[#2f3640] px-3 py-1 text-xs font-semibold hover:bg-[#2f3640] hover:text-white">Modifier</button>
                 <button data-delete-emp="${emp.id}" class="pill-btn border-2 border-red-600 text-red-600 px-3 py-1 text-xs font-semibold hover:bg-red-600 hover:text-white">Supprimer</button>

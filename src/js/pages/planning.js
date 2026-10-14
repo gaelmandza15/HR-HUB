@@ -22,11 +22,17 @@ let employees = [];
 let roles = [];
 
 async function reload() {
-    [shifts, employees, roles] = await Promise.all([
+    const [s, e, r] = await Promise.all([
         api.listShifts({ week: currentWeek }),
         api.listEmployees(),
         api.listRoles(),
     ]);
+    // Normalisation défensive : quelle que soit la source (Tauri/SQLite ou
+    // localStorage), `shift` reste une chaîne et `contract` un nombre.
+    // Évite l'erreur "shiftString.toLowerCase is not a function".
+    shifts = s.map((sh) => ({ ...sh, shift: String(sh.shift ?? 'Repos') }));
+    employees = e.map((emp) => ({ ...emp, contract: Number(emp.contract) || 0 }));
+    roles = r;
 }
 
 export async function renderPlanning(container) {
