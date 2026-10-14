@@ -7,10 +7,11 @@ d'application) puis exporte toutes les tailles requises par Tauri.
 from PIL import Image, ImageDraw
 import os
 
-SRC = r"C:\Users\Gael\Downloads\Gemini_Generated_Image_yns9v8yns9v8yns9.jpg"
 # Le script vit dans <racine>/scripts : la racine du projet est son parent.
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ICON_DIR = os.path.join(PROJECT_ROOT, "src-tauri", "icons")
+# Image source versionnée avec le projet (aucune dépendance à un fichier externe).
+SRC = os.path.join(ICON_DIR, "source", "icon-source.jpg")
 
 # Rayon d'arrondi en proportion du côté (carré "un peu arrondi").
 # ~22 % correspond aux proportions typiques d'une icône d'application moderne.
