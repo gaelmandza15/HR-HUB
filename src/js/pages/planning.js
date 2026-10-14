@@ -5,13 +5,13 @@
 
 import { api } from '../api.js';
 import {
-    DAYS_OF_WEEK,
     escapeHtml,
     getShift,
     isoWeekNumber,
     totalHoursFor,
     weekRange,
 } from '../utils.js';
+import { getDaysOfWeek, getDefaultShift, getWeekStartYear } from '../settings.js';
 import { openModal, closeModal } from '../components/modal.js';
 import { showToast } from '../components/toast.js';
 
@@ -20,19 +20,29 @@ let currentWeek = isoWeekNumber(new Date());
 let shifts = [];
 let employees = [];
 let roles = [];
+// Jours et créneau par défaut chargés depuis les paramètres SQLite (configurables)
+let daysOfWeek = [];
+let defaultShift = '';
+let weekYear = new Date().getFullYear();
 
 async function reload() {
-    const [s, e, r] = await Promise.all([
+    const [s, e, r, d, ds, wy] = await Promise.all([
         api.listShifts({ week: currentWeek }),
         api.listEmployees(),
         api.listRoles(),
+        getDaysOfWeek(),
+        getDefaultShift(),
+        getWeekStartYear(),
     ]);
     // Normalisation défensive : quelle que soit la source (Tauri/SQLite ou
     // localStorage), `shift` reste une chaîne et `contract` un nombre.
     // Évite l'erreur "shiftString.toLowerCase is not a function".
-    shifts = s.map((sh) => ({ ...sh, shift: String(sh.shift ?? 'Repos') }));
+    shifts = s.map((sh) => ({ ...sh, shift: String(sh.shift ?? defaultShift) }));
     employees = e.map((emp) => ({ ...emp, contract: Number(emp.contract) || 0 }));
     roles = r;
+    daysOfWeek = d;
+    defaultShift = ds;
+    weekYear = wy;
 }
 
 export async function renderPlanning(container) {
@@ -43,7 +53,7 @@ export async function renderPlanning(container) {
             <header class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div>
                     <h1 class="text-2xl font-bold text-[#2f3640]">Planification Hebdomadaire</h1>
-                    <p class="text-sm text-gray-600">Semaine ${currentWeek} (${weekRange(currentWeek)})</p>
+                    <p class="text-sm text-gray-600">Semaine ${currentWeek} (${weekRange(currentWeek, weekYear)})</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-3">
                     <div class="inline-flex rounded-full border-2 border-[#2f3640] overflow-hidden bg-white">
@@ -66,7 +76,7 @@ export async function renderPlanning(container) {
                     <thead>
                         <tr class="border-b-2 border-[#2f3640] bg-[#f5f6fa]">
                             <th class="p-4 font-bold text-sm">Employé / Poste</th>
-                            ${DAYS_OF_WEEK.map((d, i) => `<th class="p-4 font-bold text-sm text-center">${d} ${dayOfMonth(weekStartMonday(), i)}</th>`).join('')}
+                            ${daysOfWeek.map((d, i) => `<th class="p-4 font-bold text-sm text-center">${d} ${dayOfMonth(weekStartMonday(), i)}</th>`).join('')}
                             <th class="p-4 font-bold text-sm text-center">Total Heures</th>
                         </tr>
                     </thead>
@@ -97,10 +107,18 @@ function dayOfMonth(monday, offset) {
     return d.getDate();
 }
 
+/** Nombre de semaines ISO de l'année de référence (calcul dynamique). */
+function weeksInYear(year) {
+    const dec31 = new Date(Date.UTC(year, 11, 31));
+    const w = isoWeekNumber(dec31);
+    return w === 1 ? isoWeekNumber(new Date(Date.UTC(year, 11, 24))) : w;
+}
+
 async function changeWeek(direction, container) {
+    const max = weeksInYear(weekYear);
     currentWeek += direction;
-    if (currentWeek < 1) currentWeek = 52;
-    if (currentWeek > 52) currentWeek = 1;
+    if (currentWeek < 1) currentWeek = max;
+    if (currentWeek > max) currentWeek = 1;
     await renderPlanning(container);
     showToast(`Semaine ${currentWeek}`);
 }
@@ -119,9 +137,9 @@ function drawTable(container) {
         .map((emp) => {
             const totalH = totalHoursFor(emp.id, shifts);
             const isOver = totalH > emp.contract;
-            const cells = DAYS_OF_WEEK.map((_, i) => {
+            const cells = daysOfWeek.map((_, i) => {
                 const day = i + 1;
-                const shiftVal = getShift(emp.id, day, shifts);
+                const shiftVal = getShift(emp.id, day, shifts, defaultShift);
                 return `
                     <td class="p-3 text-center">
                         <button data-edit-shift data-emp="${emp.id}" data-day="${day}"
@@ -158,21 +176,21 @@ function drawTable(container) {
 
 function openEditShiftModal(container, empId, day) {
     const emp = employees.find((e) => e.id === empId);
-    const currentShift = getShift(empId, day, shifts);
+    const currentShift = getShift(empId, day, shifts, defaultShift);
 
     openModal(
-        `Modifier le quart (${DAYS_OF_WEEK[day - 1]})`,
+        `Modifier le quart (${daysOfWeek[day - 1] ?? ''})`,
         `
         <form id="shift-form" class="space-y-4">
             <div>
                 <label class="block text-xs font-bold uppercase mb-1">Employé : ${escapeHtml(emp.name)}</label>
-                <p class="text-sm font-semibold">Jour : ${DAYS_OF_WEEK[day - 1]}</p>
+                <p class="text-sm font-semibold">Jour : ${daysOfWeek[day - 1] ?? ''}</p>
             </div>
             <div>
                 <label class="block text-xs font-bold uppercase mb-1">Créneau horaire ou Statut</label>
                 <input type="text" id="shift-input" value="${escapeHtml(currentShift)}" required
                     class="w-full border-2 border-[#2f3640] rounded-full px-4 py-2 text-sm outline-none"
-                    placeholder="Ex: 08:00 - 16:00 ou Repos">
+                    placeholder="Ex: 08:00 - 16:00 ou ${escapeHtml(defaultShift)}">
             </div>
             <div class="flex justify-end space-x-2 pt-2">
                 <button type="button" data-close-modal-2 class="pill-btn border-2 border-[#2f3640] px-4 py-2 text-sm font-semibold">Annuler</button>
@@ -207,7 +225,7 @@ function openAddShiftModal(container) {
             <div>
                 <label class="block text-xs font-bold uppercase mb-1">Jour de la semaine</label>
                 <select id="new-shift-day" class="w-full border-2 border-[#2f3640] rounded-full px-4 py-2 text-sm bg-white outline-none">
-                    ${DAYS_OF_WEEK.map((d, i) => `<option value="${i + 1}">${d}</option>`).join('')}
+                    ${daysOfWeek.map((d, i) => `<option value="${i + 1}">${d}</option>`).join('')}
                 </select>
             </div>
             <div>

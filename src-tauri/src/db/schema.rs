@@ -34,7 +34,12 @@ pub fn create_tables(conn: &Connection) -> rusqlite::Result<()> {
             type        TEXT    NOT NULL,
             period      TEXT    NOT NULL,
             status      TEXT    NOT NULL DEFAULT 'En attente'
-                              CHECK (status IN ('En attente', 'Validé', 'Refusé'))
+        );
+
+        -- Paramètres applicatifs modifiables (postes, types d'absence, statuts…)
+        CREATE TABLE IF NOT EXISTS settings (
+            key   TEXT PRIMARY KEY,
+            value TEXT NOT NULL
         );
 
         CREATE INDEX IF NOT EXISTS idx_shifts_week ON shifts (week);
@@ -49,15 +54,51 @@ pub fn is_empty(conn: &Connection) -> rusqlite::Result<bool> {
     Ok(count == 0)
 }
 
-/// Insère les données de démonstration issues de l'application HTML d'origine.
+/// Valeurs par défaut des paramètres applicatifs (uniquement au premier
+/// lancement : l'utilisateur peut ensuite les modifier, rien n'est imposé).
+pub const DEFAULT_ROLES: &[&str] = &["Caisse", "Logistique", "Service Client", "Management"];
+pub const DEFAULT_ABSENCE_TYPES: &[&str] = &["Congé payé", "Arrêt maladie", "Congé sans solde"];
+pub const DEFAULT_ABSENCE_STATUSES: &[&str] = &["En attente", "Validé", "Refusé"];
+pub const DEFAULT_DAYS_OF_WEEK: &[&str] =
+    &["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
+pub const DEFAULT_SHIFT: &str = "Repos";
+pub const DEFAULT_CONTRACT_HOURS: i64 = 35;
+
+/// Insère les données de départ (paramètres + démo) si la base est vide.
 pub fn seed_demo_data(conn: &Connection) -> rusqlite::Result<()> {
-    // Rôles
-    let roles = ["Caisse", "Logistique", "Service Client", "Management"];
-    for role in roles {
+    // Paramètres modifiables (source unique de vérité pour le frontend)
+    crate::db::settings::set_if_absent(conn, crate::db::settings::KEY_ROLES, &DEFAULT_ROLES.join(", "))?;
+    crate::db::settings::set_if_absent(
+        conn,
+        crate::db::settings::KEY_ABSENCE_TYPES,
+        &DEFAULT_ABSENCE_TYPES.join(", "),
+    )?;
+    crate::db::settings::set_if_absent(
+        conn,
+        crate::db::settings::KEY_ABSENCE_STATUSES,
+        &DEFAULT_ABSENCE_STATUSES.join(", "),
+    )?;
+    crate::db::settings::set_if_absent(
+        conn,
+        crate::db::settings::KEY_DAYS_OF_WEEK,
+        &DEFAULT_DAYS_OF_WEEK.join(", "),
+    )?;
+    crate::db::settings::set_if_absent(conn, crate::db::settings::KEY_DEFAULT_SHIFT, DEFAULT_SHIFT)?;
+    crate::db::settings::set_if_absent(
+        conn,
+        crate::db::settings::KEY_DEFAULT_CONTRACT_HOURS,
+        &DEFAULT_CONTRACT_HOURS.to_string(),
+    )?;
+
+    // Rôles matérialisés (FK des employés) alignés sur le paramètre `roles`
+    for role in DEFAULT_ROLES {
         conn.execute("INSERT OR IGNORE INTO roles (name) VALUES (?1)", params![role])?;
     }
 
-    // Employés (nom, rôle, contrat hebdomadaire)
+    // Employés de démonstration : uniquement si la base est réellement neuve
+    // (aucun employé). Sinon on se contente d'initialiser les paramètres.
+    if is_empty(conn)? {
+    // Employés (nom, rôle, contrat hebdomadaire — données de démo uniquement)
     let employees = [
         ("Sophie Martin", "Caisse", 35),
         ("Lucas Bernard", "Logistique", 35),
@@ -117,6 +158,7 @@ pub fn seed_demo_data(conn: &Connection) -> rusqlite::Result<()> {
              SELECT id, ?2, ?3, ?4 FROM employees WHERE name = ?1",
             params![emp_name, kind, period, status],
         )?;
+    }
     }
 
     Ok(())

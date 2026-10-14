@@ -3,7 +3,8 @@
  */
 
 import { api } from '../api.js';
-import { escapeHtml, totalHoursFor } from '../utils.js';
+import { escapeHtml, totalHoursFor, isoWeekNumber } from '../utils.js';
+import { getAbsenceStatuses } from '../settings.js';
 import { switchTab } from '../components/sidebar.js';
 
 const CARD_CLASS = 'bg-white border-2 border-[#2f3640] rounded-3xl p-6 flex flex-col justify-between';
@@ -68,12 +69,15 @@ export async function renderDashboard(container) {
     );
 
     // Chargement des données depuis SQLite (via l'API Tauri)
-    const [employees, roles, shifts, absences] = await Promise.all([
+    const [employees, roles, absences, statuses] = await Promise.all([
         api.listEmployees(),
         api.listRoles(),
-        api.listShifts({ week: 42 }),
         api.listAbsences(),
+        getAbsenceStatuses(),
     ]);
+    // Le premier statut de la liste configurable est le statut "à traiter".
+    const pendingStatus = statuses[0];
+    const shifts = await api.listShifts({ week: isoWeekNumber(new Date()) });
 
     let totalCompanyHours = 0;
     let overtimeCount = 0;
@@ -87,7 +91,7 @@ export async function renderDashboard(container) {
     document.getElementById('stat-total-hours').textContent = `${totalCompanyHours}h`;
     document.getElementById('stat-overtime').textContent = overtimeCount;
     document.getElementById('stat-pending-abs').textContent = absences.filter(
-        (a) => a.status === 'En attente'
+        (a) => a.status === pendingStatus
     ).length;
 
     // Aperçu des rôles

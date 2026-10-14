@@ -2,11 +2,8 @@
  * Utilitaires partagés : constantes, calculs d'heures, helpers DOM.
  */
 
-export const DAYS_OF_WEEK = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
-
-export const ABSENCE_TYPES = ['Congé payé', 'Arrêt maladie', 'Congé sans solde'];
-
-export const WEEK_START_YEAR = 2026;
+// Les listes (jours, types d'absence…) ne sont plus codées en dur :
+// elles proviennent des paramètres SQLite via src/js/settings.js.
 
 /** Échappe le HTML injecté dynamiquement (protection XSS de base). */
 export function escapeHtml(str) {
@@ -41,9 +38,9 @@ export function totalHoursFor(employeeId, shifts) {
 }
 
 /** Récupère le créneau d'un employé pour un jour donné ('Repos' par défaut). */
-export function getShift(employeeId, day, shifts) {
+export function getShift(employeeId, day, shifts, fallback = '') {
     const found = shifts.find((s) => s.employeeId === employeeId && s.day === day);
-    return found ? found.shift : 'Repos';
+    return found ? found.shift : fallback;
 }
 
 /** Numéro de semaine ISO pour une date. */
@@ -56,7 +53,8 @@ export function isoWeekNumber(date) {
 }
 
 /** Lundi de la semaine ISO donnée (lundi -> dimanche), pour une année fournie. */
-export function weekRange(week, year = WEEK_START_YEAR) {
+export function weekRange(week, year) {
+    year = Number(year) || new Date().getFullYear();
     const simple = new Date(year, 0, 1 + (week - 1) * 7);
     const dow = simple.getDay();
     const monday = new Date(simple);

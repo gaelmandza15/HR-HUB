@@ -3,7 +3,8 @@
  */
 
 import { api } from '../api.js';
-import { escapeHtml } from '../utils.js';
+import { escapeHtml, isoWeekNumber } from '../utils.js';
+import { getDefaultContractHours, getDefaultShift, getDaysOfWeek } from '../settings.js';
 import { openModal, closeModal } from '../components/modal.js';
 import { showToast } from '../components/toast.js';
 
@@ -11,7 +12,11 @@ let employees = [];
 let roles = [];
 
 export async function renderTeam(container) {
-    const [emps, r] = await Promise.all([api.listEmployees(), api.listRoles()]);
+    const [emps, r, defaultContract] = await Promise.all([
+        api.listEmployees(),
+        api.listRoles(),
+        getDefaultContractHours(),
+    ]);
     employees = emps.map((emp) => ({ ...emp, contract: Number(emp.contract) || 0 }));
     roles = r;
 
@@ -63,7 +68,7 @@ export async function renderTeam(container) {
     document.getElementById('btn-add-emp').addEventListener('click', () => openEmployeeForm(container));
     tbody.querySelectorAll('[data-edit-emp]').forEach((btn) =>
         btn.addEventListener('click', () =>
-            openEmployeeForm(container, employees.find((e) => e.id === Number(btn.dataset.editEmp)))
+            openEmployeeForm(container, employees.find((e) => e.id === Number(btn.dataset.editEmp)), defaultContract)
         )
     );
     tbody.querySelectorAll('[data-delete-emp]').forEach((btn) =>
@@ -76,11 +81,8 @@ export async function renderTeam(container) {
 }
 
 /** Formulaire unique réutilisé pour création et édition. */
-function openEmployeeForm(container, emp = null) {
+function openEmployeeForm(container, emp = null, defaultContract = 0) {
     const isEdit = emp !== null;
-    const roleOptions = roles
-        .map((r) => `<option value="${escapeHtml(r.name)}" ${isEdit && emp.role === r.name ? 'selected' : ''}>${escapeHtml(r.name)}</option>`)
-        .join('');
 
     openModal(
         isEdit ? "Modifier l'employé" : 'Ajouter un nouvel employé',
@@ -93,13 +95,14 @@ function openEmployeeForm(container, emp = null) {
             </div>
             <div>
                 <label class="block text-xs font-bold uppercase mb-1">Poste / Rôle</label>
-                <select id="emp-role" class="w-full border-2 border-[#2f3640] rounded-full px-4 py-2 text-sm bg-white outline-none">
-                    ${roleOptions}
-                </select>
+                <input id="emp-role" list="emp-role-list" value="${isEdit ? escapeHtml(emp.role) : ''}" required
+                    class="w-full border-2 border-[#2f3640] rounded-full px-4 py-2 text-sm outline-none"
+                    placeholder="Choisir ou créer un poste">
+                <datalist id="emp-role-list">${roles.map((r) => `<option value="${escapeHtml(r.name)}"></option>`).join('')}</datalist>
             </div>
             <div>
                 <label class="block text-xs font-bold uppercase mb-1">Contrat (Heures par semaine)</label>
-                <input type="number" id="emp-contract" value="${isEdit ? (Number(emp.contract) || 35) : 35}" min="0" step="1" required
+                <input type="number" id="emp-contract" value="${isEdit ? (Number(emp.contract) || defaultContract) : defaultContract}" min="0" step="1" required
                     class="w-full border-2 border-[#2f3640] rounded-full px-4 py-2 text-sm outline-none">
             </div>
             <div class="flex justify-end space-x-2 pt-2">
@@ -121,9 +124,14 @@ function openEmployeeForm(container, emp = null) {
                     showToast('Informations mises à jour');
                 } else {
                     const id = await api.addEmployee(payload);
-                    // Initialisation des créneaux de la semaine courante à 'Repos'
-                    for (let day = 1; day <= 7; day++) {
-                        await api.setShift({ employeeId: id, week: 42, day, shift: 'Repos' });
+                    // Initialisation des créneaux de la semaine courante au créneau par défaut
+                    const [defaultShift, days] = await Promise.all([
+                        getDefaultShift(),
+                        getDaysOfWeek(),
+                    ]);
+                    const week = isoWeekNumber(new Date());
+                    for (let day = 1; day <= days.length; day++) {
+                        await api.setShift({ employeeId: id, week, day, shift: defaultShift });
                     }
                     showToast('Employé ajouté avec succès');
                 }

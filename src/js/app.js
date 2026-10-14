@@ -12,12 +12,14 @@ import { renderDashboard } from './pages/dashboard.js';
 import { renderPlanning } from './pages/planning.js';
 import { renderTeam } from './pages/team.js';
 import { renderAbsences } from './pages/absences.js';
+import { renderSettings } from './pages/settings.js';
 
 const PAGES = {
     dashboard: renderDashboard,
     planning: renderPlanning,
     team: renderTeam,
     absences: renderAbsences,
+    settings: renderSettings,
 };
 
 const container = () => document.getElementById('page-container');

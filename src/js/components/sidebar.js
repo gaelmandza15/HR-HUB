@@ -8,6 +8,7 @@ export const TABS = [
     { id: 'planning', label: 'Planification', icon: 'fa-calendar-days' },
     { id: 'team', label: 'Équipe & Postes', icon: 'fa-users' },
     { id: 'absences', label: 'Absences & Congés', icon: 'fa-plane-slash' },
+    { id: 'settings', label: 'Réglages', icon: 'fa-gear' },
 ];
 
 const BASE_CLASS =

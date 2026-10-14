@@ -3,12 +3,20 @@
  */
 
 import { api } from '../api.js';
-import { ABSENCE_TYPES, escapeHtml } from '../utils.js';
+import { escapeHtml } from '../utils.js';
+import { getAbsenceTypes, getAbsenceStatuses } from '../settings.js';
 import { openModal, closeModal } from '../components/modal.js';
 import { showToast } from '../components/toast.js';
 
 export async function renderAbsences(container) {
-    const [absences, employees] = await Promise.all([api.listAbsences(), api.listEmployees()]);
+    const [absences, employees, absenceTypes, statuses] = await Promise.all([
+        api.listAbsences(),
+        api.listEmployees(),
+        getAbsenceTypes(),
+        getAbsenceStatuses(),
+    ]);
+    // Le 1er statut est le statut initial ; les suivants sont les transitions possibles.
+    const [initialStatus, ...nextStatuses] = statuses;
     const empById = new Map(employees.map((e) => [e.id, e]));
 
     container.innerHTML = `
@@ -52,8 +60,12 @@ export async function renderAbsences(container) {
                     <span class="pill-btn border-2 border-[#2f3640] px-3 py-1 text-xs font-bold">${escapeHtml(abs.status)}</span>
                 </td>
                 <td class="p-4 text-right space-x-2">
-                    <button data-abs-validate="${abs.id}" class="pill-btn bg-[#2f3640] text-[#f5f6fa] px-3 py-1 text-xs font-semibold">Valider</button>
-                    <button data-abs-reject="${abs.id}" class="pill-btn border-2 border-[#2f3640] px-3 py-1 text-xs font-semibold">Refuser</button>
+                    ${nextStatuses
+                        .map(
+                            (st) =>
+                                `<button data-abs-status="${abs.id}" data-status="${escapeHtml(st)}" class="pill-btn border-2 border-[#2f3640] px-3 py-1 text-xs font-semibold hover:bg-[#2f3640] hover:text-white">${escapeHtml(st)}</button>`
+                        )
+                        .join('')}
                 </td>
             </tr>`;
         })
@@ -65,11 +77,8 @@ export async function renderAbsences(container) {
         showToast(`Demande marquée comme : ${status}`);
     }
 
-    tbody.querySelectorAll('[data-abs-validate]').forEach((btn) =>
-        btn.addEventListener('click', () => setStatus(Number(btn.dataset.absValidate), 'Validé'))
-    );
-    tbody.querySelectorAll('[data-abs-reject]').forEach((btn) =>
-        btn.addEventListener('click', () => setStatus(Number(btn.dataset.absReject), 'Refusé'))
+    tbody.querySelectorAll('[data-abs-status]').forEach((btn) =>
+        btn.addEventListener('click', () => setStatus(Number(btn.dataset.absStatus), btn.dataset.status))
     );
 
     document.getElementById('btn-add-abs').addEventListener('click', () => {
@@ -86,7 +95,7 @@ export async function renderAbsences(container) {
                 <div>
                     <label class="block text-xs font-bold uppercase mb-1">Type d'absence</label>
                     <select id="abs-type" class="w-full border-2 border-[#2f3640] rounded-full px-4 py-2 text-sm bg-white outline-none">
-                        ${ABSENCE_TYPES.map((t) => `<option value="${t}">${t}</option>`).join('')}
+                        ${absenceTypes.map((t) => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('')}
                     </select>
                 </div>
                 <div>

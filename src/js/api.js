@@ -18,78 +18,77 @@ async function tauriInvoke(cmd, args = {}) {
 
 const LS_KEY = 'hrhub-db-v1';
 
-function loadStore() {
-    const raw = localStorage.getItem(LS_KEY);
-    if (raw) return JSON.parse(raw);
-    // Données de départ identiques au seed SQLite (src-tauri/src/db/schema.rs)
-    const store = {
-        roles: ['Caisse', 'Logistique', 'Service Client', 'Management'],
-        employees: [
-            { id: 1, name: 'Sophie Martin', role: 'Caisse', contract: 35 },
-            { id: 2, name: 'Lucas Bernard', role: 'Logistique', contract: 35 },
-            { id: 3, name: 'Emma Leroy', role: 'Service Client', contract: 35 },
-            { id: 4, name: 'Thomas Petit', role: 'Caisse', contract: 39 },
-            { id: 5, name: 'Chloé Moreau', role: 'Logistique', contract: 30 },
-        ],
-        shifts: [
-            ...toShifts(1, [['08:00 - 16:00', '08:00 - 16:00', 'Repos', '10:00 - 18:00', '08:00 - 16:00', 'Repos', 'Repos']]),
-            ...toShifts(2, ['12:00 - 20:00', '12:00 - 20:00', '12:00 - 20:00', 'Repos', '12:00 - 20:00', '12:00 - 20:00', 'Repos']),
-            ...toShifts(3, ['09:00 - 17:00', '09:00 - 17:00', '09:00 - 17:00', '09:00 - 17:00', 'Repos', 'Repos', 'Repos']),
-            ...toShifts(4, ['Repos', '08:00 - 16:00', '08:00 - 16:00', '08:00 - 16:00', '08:00 - 16:00', '08:00 - 16:00', 'Repos']),
-            ...toShifts(5, ['10:00 - 16:00', '10:00 - 16:00', 'Repos', '10:00 - 16:00', '10:00 - 16:00', 'Repos', 'Repos']),
-        ],
-        absences: [
-            { id: 1, employeeId: 2, type: 'Congé payé', period: '16 Octobre - 17 Octobre', status: 'En attente' },
-            { id: 2, employeeId: 4, type: 'Arrêt maladie', period: '12 Octobre', status: 'Validé' },
-            { id: 3, employeeId: 5, type: 'Congé sans solde', period: '14 Octobre', status: 'Refusé' },
-        ],
-        nextIds: { emp: 6, abs: 4 },
-    };
-    localStorage.setItem(LS_KEY, JSON.stringify(store));
-    return store;
-}
-
-function toShifts(empId, values) {
-    return values.map((shift, i) => ({ employeeId: empId, week: 42, day: i + 1, shift }));
-}
-
 function saveStore(store) {
     localStorage.setItem(LS_KEY, JSON.stringify(store));
+}
+
+// Les données de démo sont servies depuis `hrhub-demo.json` (fichier séparé,
+// régénéré par l'app Tauri à chaque démarrage) — rien n'est codé en dur.
+let demoPromise = null;
+function fetchDemo() {
+    if (!demoPromise) {
+        demoPromise = fetch('hrhub-demo.json')
+            .then((r) => (r.ok ? r.json() : null))
+            .catch(() => null);
+    }
+    return demoPromise;
+}
+
+async function getStore() {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) return JSON.parse(raw);
+    const demo = await fetchDemo();
+    const store = demo ?? {
+        settings: {},
+        roles: [],
+        employees: [],
+        shifts: [],
+        absences: [],
+        nextIds: { emp: 1, abs: 1 },
+    };
+    // Migrateurs défensifs pour d'éventuels anciens formats localStorage
+    store.roles ??= [];
+    store.shifts ??= [];
+    store.absences ??= [];
+    store.nextIds ??= { emp: 1, abs: 1 };
+    store.settings.week_start_year ??= String(new Date().getFullYear());
+    localStorage.setItem(LS_KEY, JSON.stringify(store));
+    return store;
 }
 
 function localApi() {
     return {
         async listRoles() {
-            return loadStore().roles.map((name, i) => ({ id: i + 1, name }));
+            return (await getStore()).roles.map((name, i) => ({ id: i + 1, name }));
         },
         async listEmployees() {
-            return loadStore().employees;
+            return (await getStore()).employees;
         },
         async addEmployee({ name, role, contract }) {
-            const s = loadStore();
+            const s = await getStore();
             const id = s.nextIds.emp++;
             s.employees.push({ id, name, role, contract });
             saveStore(s);
             return id;
         },
         async updateEmployee({ id, name, role, contract }) {
-            const s = loadStore();
+            const s = await getStore();
             const emp = s.employees.find((e) => e.id === id);
             Object.assign(emp, { name, role, contract });
             saveStore(s);
         },
         async deleteEmployee({ id }) {
-            const s = loadStore();
+            const s = await getStore();
             s.employees = s.employees.filter((e) => e.id !== id);
             s.shifts = s.shifts.filter((sh) => sh.employeeId !== id);
             s.absences = s.absences.filter((a) => a.employeeId !== id);
             saveStore(s);
         },
         async listShifts({ week }) {
-            return loadStore().shifts.filter((sh) => sh.week === week);
+            return (await getStore()).shifts.filter((sh) => sh.week === week);
         },
         async setShift({ employeeId, week, day, shift }) {
-            const s = loadStore();
+            const s = await getStore();
             const existing = s.shifts.find(
                 (sh) => sh.employeeId === employeeId && sh.week === week && sh.day === day
             );
@@ -98,18 +97,55 @@ function localApi() {
             saveStore(s);
         },
         async listAbsences() {
-            return loadStore().absences;
+            return (await getStore()).absences;
         },
         async addAbsence({ employeeId, kind, period }) {
-            const s = loadStore();
+            const s = await getStore();
             const id = s.nextIds.abs++;
-            s.absences.push({ id, employeeId, type: kind, period, status: 'En attente' });
+            const statuses = (s.settings.absence_statuses || '')
+                .split(',')
+                .map((x) => x.trim())
+                .filter(Boolean);
+            s.absences.push({ id, employeeId, type: kind, period, status: statuses[0] || 'A traiter' });
             saveStore(s);
             return id;
         },
         async setAbsenceStatus({ id, status }) {
-            const s = loadStore();
+            const s = await getStore();
             s.absences.find((a) => a.id === id).status = status;
+            saveStore(s);
+        },
+        async addRole({ name }) {
+            const s = await getStore();
+            if (!s.roles.includes(name)) s.roles.push(name);
+            s.settings.roles = s.roles.join(', ');
+            saveStore(s);
+            return s.roles.length;
+        },
+        async updateRole({ id, name }) {
+            const s = await getStore();
+            const old = s.roles[id - 1];
+            if (old === undefined) return;
+            s.roles[id - 1] = name;
+            s.employees.forEach((e) => { if (e.role === old) e.role = name; });
+            s.settings.roles = s.roles.join(', ');
+            saveStore(s);
+        },
+        async deleteRole({ id }) {
+            const s = await getStore();
+            const [removed] = s.roles.splice(id - 1, 1);
+            s.settings.roles = s.roles.join(', ');
+            s.employees = s.employees.filter((e) => e.role !== removed);
+            saveStore(s);
+        },
+        async getSettings() {
+            const s = await getStore();
+            return Object.entries(s.settings).map(([key, value]) => ({ key, value }));
+        },
+        async setSetting({ key, value }) {
+            const s = await getStore();
+            s.settings[key] = value;
+            if (key === 'roles') s.roles = value.split(',').map((x) => x.trim()).filter(Boolean);
             saveStore(s);
         },
     };
@@ -127,6 +163,11 @@ function tauriApi() {
         listAbsences: () => tauriInvoke('list_absences'),
         addAbsence: ({ employeeId, kind, period }) => tauriInvoke('add_absence', { employeeId, kind, period }),
         setAbsenceStatus: ({ id, status }) => tauriInvoke('set_absence_status', { id, status }),
+        addRole: ({ name }) => tauriInvoke('add_role', { name }),
+        updateRole: ({ id, name }) => tauriInvoke('update_role', { id, name }),
+        deleteRole: ({ id }) => tauriInvoke('delete_role', { id }),
+        getSettings: () => tauriInvoke('get_settings'),
+        setSetting: ({ key, value }) => tauriInvoke('set_setting', { key, value }),
     };
 }
 
