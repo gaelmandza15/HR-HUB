@@ -10,6 +10,11 @@ export default defineConfig({
   server: {
     port: 1420,
     strictPort: true,
+    watch: {
+      // Cargo écrit en continu dans src-tauri/target : sans exclusion, le
+      // watcher Vite plante en EBUSY sur les binaires en cours de compilation.
+      ignored: ['**/src-tauri/**'],
+    },
   },
   envPrefix: ['VITE_', 'TAURI_'],
   build: {
