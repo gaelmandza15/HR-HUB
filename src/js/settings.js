@@ -13,7 +13,13 @@ let cache = null; // { key: value }
 async function load() {
     if (!cache) {
         const rows = await api.getSettings();
-        cache = Object.fromEntries(rows.map((s) => [s.key, s.value]));
+        // Garde-fou : si l'API renvoie null/undefined (ex. commande Tauri
+        // absente d'un binaire périmé), on retombe sur un objet vide plutôt
+        // que de faire planter Object.fromEntries
+        // ("Cannot convert undefined or null to object").
+        cache = Object.fromEntries(
+            (Array.isArray(rows) ? rows : []).map((s) => [s.key, s.value])
+        );
     }
     return cache;
 }

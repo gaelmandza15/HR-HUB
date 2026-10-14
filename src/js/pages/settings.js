@@ -24,7 +24,11 @@ const DEFAULTS = [
 
 export async function renderSettings(container) {
     const [rows, roles] = await Promise.all([api.getSettings(), api.listRoles()]);
-    const settings = Object.fromEntries(rows.map((s) => [s.key, s.value]));
+    // Garde-fou : jamais passer null/undefined à Object.fromEntries
+    // ("Cannot convert undefined or null to object").
+    const settings = Object.fromEntries(
+        (Array.isArray(rows) ? rows : []).map((s) => [s.key, s.value])
+    );
     // Les postes sont une entité à part entière (table SQLite `roles`) :
     // ajout/suppression via l'API dédiée, jamais en tapant dans une chaîne.
     const roleItems = roles.map((r) => ({ id: r.id, value: r.name }));

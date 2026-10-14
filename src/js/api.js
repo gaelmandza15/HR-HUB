@@ -36,7 +36,14 @@ function fetchDemo() {
 
 async function getStore() {
     const raw = localStorage.getItem(LS_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+        try {
+            return JSON.parse(raw);
+        } catch {
+            // localStorage corrompu (ex. troncature) : on repart du seed démo
+            localStorage.removeItem(LS_KEY);
+        }
+    }
     const demo = await fetchDemo();
     const store = demo ?? {
         settings: {},
@@ -74,6 +81,9 @@ function localApi() {
         async updateEmployee({ id, name, role, contract }) {
             const s = await getStore();
             const emp = s.employees.find((e) => e.id === id);
+            // Garde-fou : l'employé peut ne plus exister (supprimé entre-temps)
+            // -> éviter "Cannot convert undefined or null to object".
+            if (!emp) return;
             Object.assign(emp, { name, role, contract });
             saveStore(s);
         },
@@ -112,7 +122,9 @@ function localApi() {
         },
         async setAbsenceStatus({ id, status }) {
             const s = await getStore();
-            s.absences.find((a) => a.id === id).status = status;
+            const abs = s.absences.find((a) => a.id === id);
+            if (!abs) return; // demande supprimée entre-temps : no-op défensif
+            abs.status = status;
             saveStore(s);
         },
         async addRole({ name }) {
