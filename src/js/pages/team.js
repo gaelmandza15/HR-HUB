@@ -99,7 +99,7 @@ function openEmployeeForm(container, emp = null) {
             </div>
             <div>
                 <label class="block text-xs font-bold uppercase mb-1">Contrat (Heures par semaine)</label>
-                <input type="number" id="emp-contract" value="${isEdit ? emp.contract : 35}" required
+                <input type="number" id="emp-contract" value="${isEdit ? (Number(emp.contract) || 35) : 35}" min="0" step="1" required
                     class="w-full border-2 border-[#2f3640] rounded-full px-4 py-2 text-sm outline-none">
             </div>
             <div class="flex justify-end space-x-2 pt-2">
