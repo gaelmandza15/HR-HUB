@@ -33,17 +33,10 @@ async function navigate(tabId) {
     }
 }
 
+import '../css/app.css';
+
 // Les pages écoutent l'événement émis par la sidebar
 window.addEventListener('tab-change', (e) => navigate(e.detail));
-
-// Démarrage à plat : pas d'ombres ni de dégradés (design system "flat")
-const style = document.createElement('style');
-style.textContent = `
-    * { box-shadow: none !important; background-image: none !important; }
-    body { background-color: #f5f6fa; color: #2f3640; font-family: 'Inter', sans-serif; }
-    .pill-btn { border-radius: 9999px; transition: background-color 0.15s ease, color 0.15s ease; }
-`;
-document.head.appendChild(style);
 
 initModal();
 initSidebar();

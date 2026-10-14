@@ -1,0 +1,44 @@
+/* ============================================================
+   HR HUB – Feuille de style locale (zéro CDN)
+   Tailwind v4 est compilé ici par @tailwindcss/vite : seules
+   les classes réellement utilisées dans index.html et src/js/**
+   sont incluses dans le bundle final.
+   ============================================================ */
+
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/inter/700.css";
+
+/* Icônes FontAwesome vendorisées depuis npm (polices servies en local) */
+@import "@fortawesome/fontawesome-free/css/fontawesome.min.css";
+@import "@fortawesome/fontawesome-free/css/solid.min.css";
+
+/* Tailwind CSS (détection automatique des classes dans index.html + src/) */
+@import "tailwindcss";
+
+/* Thème : polices et couleurs personnalisées (rhDark / rhLight) */
+@theme {
+    --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+    --color-rhDark: #2f3640;
+    --color-rhLight: #f5f6fa;
+}
+
+/* Design system "flat" : pas d'ombres ni de dégradés */
+* {
+    box-shadow: none !important;
+    background-image: none !important;
+}
+
+body {
+    background-color: #f5f6fa;
+    color: #2f3640;
+    font-family: "Inter", sans-serif;
+}
+
+.pill-btn {
+    border-radius: 9999px;
+    transition:
+        background-color 0.15s ease,
+        color 0.15s ease;
+}

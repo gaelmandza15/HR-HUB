@@ -11,7 +11,7 @@ export const TABS = [
 ];
 
 const BASE_CLASS =
-    'w-full flex items-center space-x-3 px-4 py-3 rounded-full font-medium transition-colors text-left text-[#f5f6fa] hover:bg-white hover:bg-opacity-10';
+    'w-full flex items-center space-x-3 px-4 py-3 rounded-full font-medium transition-colors text-left text-[#f5f6fa] hover:bg-white/10';
 const ACTIVE_CLASS =
     'w-full flex items-center space-x-3 px-4 py-3 rounded-full font-medium transition-colors text-left bg-[#f5f6fa] text-[#2f3640]';
 
