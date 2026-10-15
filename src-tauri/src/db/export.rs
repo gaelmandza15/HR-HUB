@@ -320,17 +320,21 @@ fn split_row(line: &str, sep: char) -> Vec<String> {
 pub fn write_model(conn: &Connection, model: &Value, merge: bool) -> Result<(), String> {
     let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
 
-    if !merge {
-        tx.execute_batch("PRAGMA foreign_keys = OFF;")
-            .map_err(|e| e.to_string())?;
-    }
-
     let result = (|| -> Result<(), String> {
-        // 1) Postes
-        if let Some(roles) = model.get("roles").and_then(Value::as_array) {
-            if !merge {
-                tx.execute("DELETE FROM roles", []).map_err(|e| e.to_string())?;
+        // 0) Mode remplacement : vider les tables dans l'ordre inverse des
+        // dépendances (enfants -> parents), sinon la contrainte FOREIGN KEY
+        // `employees.role_id -> roles.id` échoue.
+        // NB : `PRAGMA foreign_keys` est sans effet à l'intérieur d'une
+        // transaction ouverte, on ne peut donc pas compter dessus ici.
+        if !merge {
+            for table in ["absences", "shifts", "employees", "roles", "settings"] {
+                tx.execute(&format!("DELETE FROM {table}"), [])
+                    .map_err(|e| e.to_string())?;
             }
+        }
+
+        // 1) Postes (parents d'abord)
+        if let Some(roles) = model.get("roles").and_then(Value::as_array) {
             for r in roles {
                 let name = field_str(r, "name").ok_or("Poste sans nom dans le fichier.")?;
                 tx.execute(
@@ -343,9 +347,6 @@ pub fn write_model(conn: &Connection, model: &Value, merge: bool) -> Result<(), 
 
         // 2) Employés
         if let Some(emps) = model.get("employees").and_then(Value::as_array) {
-            if !merge {
-                tx.execute("DELETE FROM employees", []).map_err(|e| e.to_string())?;
-            }
             for e in emps {
                 let name = field_str(e, "name").ok_or("Employé sans nom dans le fichier.")?;
                 let role_id: i64 = match field_str(e, "role") {
@@ -371,9 +372,6 @@ pub fn write_model(conn: &Connection, model: &Value, merge: bool) -> Result<(), 
 
         // 3) Créneaux
         if let Some(shifts) = model.get("shifts").and_then(Value::as_array) {
-            if !merge {
-                tx.execute("DELETE FROM shifts", []).map_err(|e| e.to_string())?;
-            }
             for s in shifts {
                 let (Some(emp), Some(week), Some(day)) = (
                     field_i64(s, "employeeId").or_else(|| field_i64(s, "employee_id")),
@@ -393,9 +391,6 @@ pub fn write_model(conn: &Connection, model: &Value, merge: bool) -> Result<(), 
 
         // 4) Absences
         if let Some(absences) = model.get("absences").and_then(Value::as_array) {
-            if !merge {
-                tx.execute("DELETE FROM absences", []).map_err(|e| e.to_string())?;
-            }
             for a in absences {
                 let Some(emp) = field_i64(a, "employeeId").or_else(|| field_i64(a, "employee_id")) else {
                     continue;
@@ -413,9 +408,6 @@ pub fn write_model(conn: &Connection, model: &Value, merge: bool) -> Result<(), 
 
         // 5) Paramètres
         if let Some(settings) = model.get("settings").and_then(Value::as_array) {
-            if !merge {
-                tx.execute("DELETE FROM settings", []).map_err(|e| e.to_string())?;
-            }
             for st in settings {
                 let (Some(key), Some(value)) = (field_str(st, "key"), field_str(st, "value")) else {
                     continue;
@@ -429,10 +421,6 @@ pub fn write_model(conn: &Connection, model: &Value, merge: bool) -> Result<(), 
         Ok(())
     })();
 
-    if !merge {
-        tx.execute_batch("PRAGMA foreign_keys = ON;")
-            .map_err(|e| e.to_string())?;
-    }
     result?;
     tx.commit().map_err(|e| e.to_string())?;
     Ok(())
