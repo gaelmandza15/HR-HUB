@@ -5,6 +5,10 @@ description = "HR HUB - Application de gestion des horaires et planification RH"
 authors = ["HR HUB"]
 edition = "2021"
 
+[lib]
+name = "hr_hub_lib"
+path = "src/lib.rs"
+
 [build-dependencies]
 tauri-build = { version = "1.5", features = [] }
 

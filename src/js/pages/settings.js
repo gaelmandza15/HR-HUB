@@ -9,6 +9,7 @@ import { escapeHtml } from '../utils.js';
 import { openModal, closeModal } from '../components/modal.js';
 import { showToast } from '../components/toast.js';
 import { saveSetting, invalidateSettings } from '../settings.js';
+import { mountDataIO } from '../components/data-io.js';
 
 // Libellés affichés pour chaque paramètre modifiable
 const LISTS = [
@@ -40,6 +41,14 @@ export async function renderSettings(container) {
                 <p class="text-sm text-gray-600">Toutes les listes sont modifiables et enregistrées dans la base locale.</p>
             </header>
 
+            <div class="bg-white border-2 border-[#2f3640] rounded-3xl p-6">
+                <h3 class="text-base font-bold mb-1 flex items-center gap-2">
+                    <i class="fa-solid fa-right-left"></i>Import / Export des données
+                </h3>
+                <p class="text-xs text-gray-500 mb-4">Sauvegarde complète (postes, employés, planning, absences, réglages) aux formats JSON, CSV, TSV, Markdown ou SQL. À l'import : « Fusionner » ajoute sans rien écraser, « Remplacer » recharge les tables du fichier.</p>
+                <div id="data-io-bar"></div>
+            </div>
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="settings-lists"></div>
 
             <div class="bg-white border-2 border-[#2f3640] rounded-3xl p-6">
@@ -69,6 +78,9 @@ export async function renderSettings(container) {
                 ).join('')}
             </div>
         </div>`;
+
+    // Barre Import / Export (composant réutilisable)
+    mountDataIO(container.querySelector('#data-io-bar'), () => renderSettings(container));
 
     // Cartes de listes éditables (paramètres clé/valeur)
     document.getElementById('settings-lists').innerHTML = LISTS.map(

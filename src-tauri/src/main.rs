@@ -1,6 +1,4 @@
-mod commands;
-mod db;
-
+use hr_hub_lib::{commands, db};
 use tauri::Manager;
 
 fn main() {
@@ -9,6 +7,8 @@ fn main() {
             // Base SQLite stockée dans le dossier de données de l'application
             let app_data_dir = app.path_resolver().app_data_dir()
                 .expect("impossible de resoudre le repertoire de donnees");
+            // Mémorisé pour que `import_data` puisse resynchroniser hrhub-demo.json.
+            let _ = commands::APP_DATA_DIR.set(app_data_dir.clone());
             let db_state = db::init_db(&app_data_dir)
                 .map_err(|e| format!("Impossible d'initialiser la base SQLite : {e}"))?;
 
@@ -41,7 +41,9 @@ fn main() {
             commands::add_absence,
             commands::set_absence_status,
             commands::get_settings,
-            commands::set_setting
+            commands::set_setting,
+            commands::export_data,
+            commands::import_data
         ])
         .run(tauri::generate_context!())
         .expect("erreur lors de l'execution de HR HUB");

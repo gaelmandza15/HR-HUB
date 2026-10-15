@@ -113,25 +113,16 @@ pub fn export_demo_json(conn: &rusqlite::Connection, app_data_dir: &std::path::P
             .collect();
         collected
     };
-    let absences: Vec<DemoAbsence> = {
-        let mut stmt = conn
-            .prepare("SELECT id, employee_id, type, period, status FROM absences ORDER BY id")
-            .map_err(|e| e.to_string())?;
-        let collected: Vec<DemoAbsence> = stmt
-            .query_map([], |r| {
-                Ok(DemoAbsence {
-                    id: r.get(0)?,
-                    employee_id: r.get(1)?,
-                    kind: r.get(2)?,
-                    period: r.get(3)?,
-                    status: r.get(4)?,
-                })
-            })
-            .map_err(|e| e.to_string())?
-            .filter_map(Result::ok)
-            .collect();
-        collected
-    };
+    let absences: Vec<DemoAbsence> = list_absences_data(conn)?
+        .into_iter()
+        .map(|a| DemoAbsence {
+            id: a.id,
+            employee_id: a.employee_id,
+            kind: a.kind,
+            period: a.period,
+            status: a.status,
+        })
+        .collect();
     let next_emp = employees.iter().map(|e| e.id).max().unwrap_or(0) + 1;
     let next_abs = absences.iter().map(|a| a.id).max().unwrap_or(0) + 1;
     let store = DemoStore {
@@ -153,9 +144,8 @@ fn lock<'a>(db: &'a State<'a, DbState>) -> Result<std::sync::MutexGuard<'a, rusq
 
 // ---------- Rôles ----------
 
-#[tauri::command]
-pub fn list_roles(db: State<DbState>) -> Result<Vec<Role>, String> {
-    let conn = lock(&db)?;
+/// Lecture des rôles (partagée entre la commande Tauri et l'export/import).
+pub fn list_roles_data(conn: &rusqlite::Connection) -> Result<Vec<Role>, String> {
     let mut stmt = conn
         .prepare("SELECT id, name FROM roles ORDER BY id")
         .map_err(|e| e.to_string())?;
@@ -163,6 +153,12 @@ pub fn list_roles(db: State<DbState>) -> Result<Vec<Role>, String> {
         .query_map([], |r| Ok(Role { id: r.get(0)?, name: r.get(1)? }))
         .map_err(|e| e.to_string())?;
     rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn list_roles(db: State<DbState>) -> Result<Vec<Role>, String> {
+    let conn = lock(&db)?;
+    list_roles_data(&conn)
 }
 
 // ---------- Employés ----------
@@ -258,6 +254,24 @@ pub fn delete_employee(db: State<DbState>, id: i64) -> Result<(), String> {
 
 // ---------- Créneaux / Planning ----------
 
+fn map_shift_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<Shift> {
+    Ok(Shift {
+        employee_id: r.get(0)?,
+        week: r.get(1)?,
+        day: r.get(2)?,
+        shift: r.get(3)?,
+    })
+}
+
+/// Tous les créneaux (utilisé par l'export/import).
+pub fn all_shifts_data(conn: &rusqlite::Connection) -> Result<Vec<Shift>, String> {
+    let mut stmt = conn
+        .prepare("SELECT employee_id, week, day, shift FROM shifts ORDER BY week, day, employee_id")
+        .map_err(|e| e.to_string())?;
+    let rows = stmt.query_map([], map_shift_row).map_err(|e| e.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub fn list_shifts(db: State<DbState>, week: i64) -> Result<Vec<Shift>, String> {
     let conn = lock(&db)?;
@@ -265,14 +279,7 @@ pub fn list_shifts(db: State<DbState>, week: i64) -> Result<Vec<Shift>, String> 
         .prepare("SELECT employee_id, week, day, shift FROM shifts WHERE week = ?1")
         .map_err(|e| e.to_string())?;
     let rows = stmt
-        .query_map(rusqlite::params![week], |r| {
-            Ok(Shift {
-                employee_id: r.get(0)?,
-                week: r.get(1)?,
-                day: r.get(2)?,
-                shift: r.get(3)?,
-            })
-        })
+        .query_map(rusqlite::params![week], map_shift_row)
         .map_err(|e| e.to_string())?;
     rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
 }
@@ -298,24 +305,31 @@ pub fn set_shift(
 
 // ---------- Absences ----------
 
-#[tauri::command]
-pub fn list_absences(db: State<DbState>) -> Result<Vec<Absence>, String> {
-    let conn = lock(&db)?;
+fn map_absence_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<Absence> {
+    Ok(Absence {
+        id: r.get(0)?,
+        employee_id: r.get(1)?,
+        kind: r.get(2)?,
+        period: r.get(3)?,
+        status: r.get(4)?,
+    })
+}
+
+/// Lecture des absences (partagée entre la commande Tauri et l'export).
+pub fn list_absences_data(conn: &rusqlite::Connection) -> Result<Vec<Absence>, String> {
     let mut stmt = conn
         .prepare("SELECT id, employee_id, type, period, status FROM absences ORDER BY id")
         .map_err(|e| e.to_string())?;
     let rows = stmt
-        .query_map([], |r| {
-            Ok(Absence {
-                id: r.get(0)?,
-                employee_id: r.get(1)?,
-                kind: r.get(2)?,
-                period: r.get(3)?,
-                status: r.get(4)?,
-            })
-        })
+        .query_map([], map_absence_row)
         .map_err(|e| e.to_string())?;
     rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn list_absences(db: State<DbState>) -> Result<Vec<Absence>, String> {
+    let conn = lock(&db)?;
+    list_absences_data(&conn)
 }
 
 #[tauri::command]
@@ -410,7 +424,7 @@ pub fn delete_role(db: State<DbState>, id: i64) -> Result<(), String> {
 }
 
 /// Resynchronise le paramètre `roles` avec la table `roles`.
-fn sync_roles_setting(conn: &rusqlite::Connection) -> Result<(), String> {
+pub fn sync_roles_setting(conn: &rusqlite::Connection) -> Result<(), String> {
     let mut stmt = conn
         .prepare("SELECT name FROM roles ORDER BY id")
         .map_err(|e| e.to_string())?;
@@ -455,3 +469,49 @@ pub fn set_setting(db: State<DbState>, key: String, value: String) -> Result<(),
     let conn = lock(&db)?;
     crate::db::settings::set(&conn, &key, &value).map_err(|e| e.to_string())
 }
+
+// ---------- Import / Export des données ----------
+
+/// Résultat d'un export : contenu sérialisé + nom de fichier suggéré.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportResult {
+    pub content: String,
+    pub filename: String,
+    pub format: String,
+}
+
+/// Exporte toute la base (postes, employés, créneaux, absences, paramètres)
+/// dans le format demandé : json | csv | tsv | md | sql.
+#[tauri::command]
+pub fn export_data(db: State<DbState>, format: String) -> Result<ExportResult, String> {
+    let conn = lock(&db)?;
+    let model = crate::db::export::build_model(&conn)?;
+    let content = crate::db::export::render(&model, &format)?;
+    Ok(ExportResult {
+        content,
+        filename: crate::db::export::suggested_filename(&format),
+        format: format.to_ascii_lowercase(),
+    })
+}
+
+/// Importe un fichier exporté (JSON, CSV ou TSV).
+///
+/// - `mode = "replace"` : remplace entièrement les tables présentes dans le fichier.
+/// - `mode = "merge"`   : ajoute/fusionne sans supprimer les données existantes.
+#[tauri::command]
+pub fn import_data(db: State<DbState>, content: String, format: String, mode: Option<String>) -> Result<(), String> {
+    let conn = lock(&db)?;
+    let model = crate::db::export::parse_payload(&content, &format)?;
+    let merge = mode.as_deref() == Some("merge");
+    crate::db::export::write_model(&conn, &model, merge)?;
+    // Les données du mode navigateur (hrhub-demo.json) sont resynchronisées.
+    if let Some(dir) = APP_DATA_DIR.get() {
+        let _ = export_demo_json(&conn, dir);
+    }
+    Ok(())
+}
+
+/// Dossier de données applicatif (mémorisé au setup pour resynchroniser
+/// `hrhub-demo.json` après un import).
+pub static APP_DATA_DIR: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();

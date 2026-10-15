@@ -4,6 +4,7 @@
 //! de données applicatif (`app_data_dir`), puis alimentée avec les
 //! données de démonstration si elle est vide.
 
+pub mod export;
 pub mod schema;
 pub mod settings;
 
