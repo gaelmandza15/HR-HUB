@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "description": "HR HUB - Application Tauri de gestion des horaires et planification RH (SQLite)",
+  "author": "Zapricot LLC",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

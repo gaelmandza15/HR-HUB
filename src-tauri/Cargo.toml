@@ -2,7 +2,7 @@
 name = "hr-hub"
 version = "1.0.0"
 description = "HR HUB - Application de gestion des horaires et planification RH"
-authors = ["HR HUB"]
+authors = ["Zapricot LLC"]
 edition = "2021"
 
 [lib]

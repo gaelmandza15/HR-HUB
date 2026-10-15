@@ -42,4 +42,9 @@ window.addEventListener('tab-change', (e) => navigate(e.detail));
 
 initModal();
 initSidebar();
+
+// Année courante dans la signature de l'éditeur (sidebar).
+const yearEl = document.getElementById('app-year');
+if (yearEl) yearEl.textContent = String(new Date().getFullYear());
+
 switchTab('dashboard');

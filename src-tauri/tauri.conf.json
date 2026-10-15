@@ -23,6 +23,10 @@
       "active": true,
       "targets": "all",
       "identifier": "com.hrhub.app",
+      "publisher": "Zapricot LLC",
+      "copyright": "© 2026 Zapricot LLC. Tous droits réservés.",
+      "shortDescription": "Gestion des horaires et planification RH",
+      "longDescription": "HR HUB — application de gestion des horaires, des équipes et des absences. Éditée par Zapricot LLC.",
       "icon": [
         "icons/32x32.png",
         "icons/128x128.png",
